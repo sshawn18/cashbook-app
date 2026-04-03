@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f6ff;
+  --bg-card: #ffffff;
+  --border: #e8eaf6;
+  --text-primary: #1e293b;
+  --text-secondary: #9fa8da;
+  --text-muted: #c5cae9;
+  --accent: #1a237e;
+  --accent-gradient: linear-gradient(135deg, #1a237e, #1565c0);
+  --cash-in: #16a34a;
+  --cash-out: #dc2626;
+  --nav-bg: #ffffff;
+  --chip-bg: #e8eaf6;
+  --chip-text: #5c6bc0;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0b0d1a;
+  --bg-secondary: #151829;
+  --bg-card: #151829;
+  --border: #1e2340;
+  --text-primary: #ffffff;
+  --text-secondary: #6b7a9f;
+  --text-muted: #2d3561;
+  --accent: #3d5afe;
+  --accent-gradient: linear-gradient(135deg, #1a237e, #1565c0);
+  --cash-in: #16a34a;
+  --cash-out: #dc2626;
+  --nav-bg: #0d0f1e;
+  --chip-bg: #1e2340;
+  --chip-text: #6b7a9f;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: 'DM Sans', sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Hide scrollbar but keep scrolling */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
