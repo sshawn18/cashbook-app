@@ -1,13 +1,13 @@
 import { Routes, Route } from 'react-router-dom'
 import BottomNav from './components/BottomNav'
-
-// Pages (will be created in Tasks 11-15)
-const Placeholder = ({ name }) => (
-  <div style={{ padding: 20, paddingTop: 60, color: 'var(--text-primary)' }}>
-    <h1 style={{ fontSize: 24, fontWeight: 700 }}>{name}</h1>
-    <p style={{ color: 'var(--text-secondary)' }}>Coming soon...</p>
-  </div>
-)
+import HomePage from './pages/HomePage'
+import LedgerPage from './pages/LedgerPage'
+import ReportsPage from './pages/ReportsPage'
+import MorePage from './pages/MorePage'
+import PartiesPage from './pages/PartiesPage'
+import CategoriesPage from './pages/CategoriesPage'
+import SettingsPage from './pages/SettingsPage'
+import BackupPage from './pages/BackupPage'
 
 export default function App() {
   return (
@@ -17,14 +17,14 @@ export default function App() {
     >
       <div className="flex-1 pb-16">
         <Routes>
-          <Route path="/"                        element={<Placeholder name="Home" />} />
-          <Route path="/book/:bookId"             element={<Placeholder name="Ledger" />} />
-          <Route path="/reports"                  element={<Placeholder name="Reports" />} />
-          <Route path="/more"                     element={<Placeholder name="More" />} />
-          <Route path="/more/parties/:bookId"     element={<Placeholder name="Parties" />} />
-          <Route path="/more/categories"          element={<Placeholder name="Categories" />} />
-          <Route path="/more/settings"            element={<Placeholder name="Settings" />} />
-          <Route path="/more/backup"              element={<Placeholder name="Backup" />} />
+          <Route path="/"                    element={<HomePage />} />
+          <Route path="/book/:bookId"         element={<LedgerPage />} />
+          <Route path="/reports"              element={<ReportsPage />} />
+          <Route path="/more"                 element={<MorePage />} />
+          <Route path="/more/parties/:bookId" element={<PartiesPage />} />
+          <Route path="/more/categories"      element={<CategoriesPage />} />
+          <Route path="/more/settings"        element={<SettingsPage />} />
+          <Route path="/more/backup"          element={<BackupPage />} />
         </Routes>
       </div>
       <BottomNav />
