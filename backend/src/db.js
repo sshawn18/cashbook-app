@@ -52,6 +52,12 @@ db.exec(`
     key TEXT PRIMARY KEY,
     value TEXT
   );
+
+  CREATE TRIGGER IF NOT EXISTS books_updated_at
+  AFTER UPDATE ON books
+  BEGIN
+    UPDATE books SET updated_at = datetime('now') WHERE id = NEW.id;
+  END;
 `);
 
 module.exports = db;
