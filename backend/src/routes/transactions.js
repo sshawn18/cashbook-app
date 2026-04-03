@@ -41,6 +41,8 @@ router.post('/', (req, res) => {
 
 // PUT /api/transactions/:id
 router.put('/:id', (req, res) => {
+  const existing = db.prepare('SELECT id FROM transactions WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'transaction not found' });
   const { type, amount, category_id, party_id, note, payment_mode, date } = req.body;
   db.prepare(`UPDATE transactions SET
     type=COALESCE(?,type), amount=COALESCE(?,amount),
@@ -52,7 +54,8 @@ router.put('/:id', (req, res) => {
 
 // DELETE /api/transactions/:id
 router.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM transactions WHERE id = ?').run(req.params.id);
+  const result = db.prepare('DELETE FROM transactions WHERE id = ?').run(req.params.id);
+  if (result.changes === 0) return res.status(404).json({ error: 'transaction not found' });
   res.json({ ok: true });
 });
 

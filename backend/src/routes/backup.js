@@ -29,8 +29,12 @@ router.post('/import', (req, res) => {
     for (const t of (transactions || [])) db.prepare('INSERT INTO transactions (id,book_id,type,amount,category_id,party_id,note,payment_mode,date,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)').run(t.id,t.book_id,t.type,t.amount,t.category_id,t.party_id,t.note,t.payment_mode,t.date,t.created_at);
     for (const s of (settings || [])) db.prepare('INSERT INTO settings (key,value) VALUES (?,?)').run(s.key,s.value);
   });
-  importAll();
-  res.json({ ok: true });
+  try {
+    importAll();
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(400).json({ error: 'Import failed: ' + err.message });
+  }
 });
 
 module.exports = router;

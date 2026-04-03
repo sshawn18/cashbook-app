@@ -4,13 +4,17 @@ const router = express.Router();
 
 // GET /api/books — includes computed net_balance
 router.get('/', (req, res) => {
-  const books = db.prepare('SELECT * FROM books ORDER BY created_at DESC').all();
-  const withBalance = books.map(b => {
-    const inAmt  = db.prepare("SELECT COALESCE(SUM(amount),0) as s FROM transactions WHERE book_id=? AND type='in'").get(b.id).s;
-    const outAmt = db.prepare("SELECT COALESCE(SUM(amount),0) as s FROM transactions WHERE book_id=? AND type='out'").get(b.id).s;
-    return { ...b, net_balance: b.opening_balance + inAmt - outAmt };
-  });
-  res.json(withBalance);
+  const books = db.prepare(`
+    SELECT b.*,
+      b.opening_balance +
+      COALESCE(SUM(CASE WHEN t.type='in' THEN t.amount ELSE 0 END), 0) -
+      COALESCE(SUM(CASE WHEN t.type='out' THEN t.amount ELSE 0 END), 0) AS net_balance
+    FROM books b
+    LEFT JOIN transactions t ON t.book_id = b.id
+    GROUP BY b.id
+    ORDER BY b.created_at DESC
+  `).all();
+  res.json(books);
 });
 
 // POST /api/books
@@ -26,6 +30,8 @@ router.post('/', (req, res) => {
 
 // PUT /api/books/:id
 router.put('/:id', (req, res) => {
+  const existing = db.prepare('SELECT id FROM books WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'book not found' });
   const { name, opening_balance } = req.body;
   db.prepare(
     "UPDATE books SET name = COALESCE(?, name), opening_balance = COALESCE(?, opening_balance) WHERE id = ?"
@@ -35,7 +41,8 @@ router.put('/:id', (req, res) => {
 
 // DELETE /api/books/:id
 router.delete('/:id', (req, res) => {
-  db.prepare('DELETE FROM books WHERE id = ?').run(req.params.id);
+  const result = db.prepare('DELETE FROM books WHERE id = ?').run(req.params.id);
+  if (result.changes === 0) return res.status(404).json({ error: 'book not found' });
   res.json({ ok: true });
 });
 
