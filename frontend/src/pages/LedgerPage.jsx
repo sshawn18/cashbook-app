@@ -174,7 +174,7 @@ export default function LedgerPage() {
                           </span>
                         )}
                         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                          {new Date(txn.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                          {txn.created_at ? new Date(txn.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       </div>
                     </div>

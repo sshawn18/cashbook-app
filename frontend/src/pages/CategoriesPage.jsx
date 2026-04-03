@@ -17,9 +17,13 @@ export default function CategoriesPage() {
 
   const handleSave = async () => {
     if (!form.name.trim()) return
-    await createCat.mutateAsync(form)
-    setForm(emptyForm)
-    setOpen(false)
+    try {
+      await createCat.mutateAsync(form)
+      setOpen(false)
+      setForm({ name: '', type: 'expense', icon: '📦', color: '#6366f1' })
+    } catch {
+      // toast already shown by hook
+    }
   }
 
   return (

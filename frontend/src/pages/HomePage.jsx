@@ -22,9 +22,13 @@ export default function HomePage() {
 
   const handleCreate = async () => {
     if (!form.name.trim()) return
-    await createBook.mutateAsync({ name: form.name.trim(), opening_balance: Number(form.opening_balance) || 0 })
-    setForm({ name: '', opening_balance: '' })
-    setShowSheet(false)
+    try {
+      await createBook.mutateAsync({ name: form.name, opening_balance: Number(form.opening_balance) || 0 })
+      setForm({ name: '', opening_balance: '' })
+      setShowSheet(false)
+    } catch {
+      // toast already shown by hook
+    }
   }
 
   return (

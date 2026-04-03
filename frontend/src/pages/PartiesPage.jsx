@@ -50,7 +50,7 @@ export default function PartiesPage() {
                 className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-lg"
                 style={{ background: 'var(--accent-gradient)' }}
               >
-                {p.name[0].toUpperCase()}
+                {(p.name?.[0] || '?').toUpperCase()}
               </div>
               <div>
                 <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</p>

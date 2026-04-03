@@ -47,23 +47,15 @@ export default function AddTransactionSheet({ open, onClose, bookId, defaultType
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
   const handleSave = async () => {
-    const amt = Number(form.amount)
-    if (!amt || amt <= 0) return
-    const payload = {
-      type: form.type,
-      amount: amt,
-      category_id: form.category_id ? Number(form.category_id) : null,
-      party_id: form.party_id ? Number(form.party_id) : null,
-      note: form.note || null,
-      payment_mode: form.payment_mode,
-      date: form.date,
+    if (!form.amount || isNaN(Number(form.amount))) return
+    const payload = { ...form, amount: Number(form.amount), category_id: form.category_id ? Number(form.category_id) : null, party_id: form.party_id ? Number(form.party_id) : null }
+    try {
+      if (editData) await updateTxn.mutateAsync({ id: editData.id, ...payload })
+      else await createTxn.mutateAsync(payload)
+      onClose()
+    } catch {
+      // toast already shown by hook
     }
-    if (editData) {
-      await updateTxn.mutateAsync({ id: editData.id, ...payload })
-    } else {
-      await createTxn.mutateAsync(payload)
-    }
-    onClose()
   }
 
   const isSaving = createTxn.isPending || updateTxn.isPending

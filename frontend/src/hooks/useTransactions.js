@@ -3,7 +3,10 @@ import { api } from '../lib/api'
 import toast from 'react-hot-toast'
 
 export const useTransactions = (bookId, filters = {}) => {
-  const params = new URLSearchParams({ bookId, ...filters }).toString()
+  const cleanFilters = Object.fromEntries(
+    Object.entries({ bookId, ...filters }).filter(([, v]) => v !== undefined && v !== null && v !== '')
+  )
+  const params = new URLSearchParams(cleanFilters).toString()
   return useQuery({
     queryKey: ['transactions', bookId, filters],
     queryFn: () => api.get(`/transactions?${params}`),

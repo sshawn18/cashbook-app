@@ -138,7 +138,7 @@ export default function ReportsPage() {
                 fontSize={9}
               >
                 {expenseCats.map((c, i) => (
-                  <Cell key={i} fill={c.color || '#6366f1'} />
+                  <Cell key={c.name || i} fill={c.color || '#6366f1'} />
                 ))}
               </Pie>
               <Tooltip formatter={v => fmtCurrency(v)} />
