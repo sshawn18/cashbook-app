@@ -18,7 +18,7 @@ export default function BottomSheet({ open, onClose, title, children }) {
         onClick={onClose}
       />
       <div
-        className="relative w-full rounded-t-2xl p-5 pb-8 z-10 max-h-[90vh] overflow-y-auto"
+        className="relative w-full rounded-t-2xl p-5 pb-24 z-10 max-h-[90vh] overflow-y-auto"
         style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
         <div
