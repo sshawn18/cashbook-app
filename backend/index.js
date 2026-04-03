@@ -1,13 +1,24 @@
 const express = require('express');
 const cors = require('cors');
-require('./src/db'); // init DB
 const seed = require('./src/seed');
-
-seed();
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Lazy init: run seed once before the first request is handled
+let initialized = false;
+async function init() {
+  if (!initialized) {
+    await seed();
+    initialized = true;
+  }
+}
+
+// Must be registered BEFORE routes so it runs first
+app.use(async (req, res, next) => {
+  try { await init(); next(); } catch (e) { next(e); }
+});
 
 app.use('/api/books',        require('./src/routes/books'));
 app.use('/api/transactions', require('./src/routes/transactions'));
@@ -24,6 +35,12 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.BACKEND_PORT ?? 3001;
 if (require.main === module) {
-  app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`));
+  init().then(() =>
+    app.listen(PORT, () => console.log(`Backend running on http://localhost:${PORT}`))
+  ).catch(err => {
+    console.error('Failed to initialize DB:', err);
+    process.exit(1);
+  });
 }
+
 module.exports = app;
