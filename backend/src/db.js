@@ -11,7 +11,10 @@ function getDb() {
     _isPostgres = true;
   } else {
     const Database = require('better-sqlite3');
-    const dbPath = path.join(__dirname, '..', '..', 'cashbook.db');
+    // Use /tmp on Vercel Lambda (read-only /var/task), local path otherwise
+    const dbPath = process.env.VERCEL
+      ? '/tmp/cashbook.db'
+      : path.join(__dirname, '..', '..', 'cashbook.db');
     _db = new Database(dbPath);
     _db.pragma('journal_mode = WAL');
     _db.pragma('foreign_keys = ON');
