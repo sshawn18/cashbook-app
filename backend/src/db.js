@@ -5,9 +5,10 @@ let _isPostgres = false;
 
 function getDb() {
   if (_db) return _db;
-  if (process.env.DATABASE_URL) {
+  const connStr = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (connStr) {
     const { Pool } = require('pg');
-    _db = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    _db = new Pool({ connectionString: connStr, ssl: { rejectUnauthorized: false } });
     _isPostgres = true;
   } else {
     const Database = require('better-sqlite3');
