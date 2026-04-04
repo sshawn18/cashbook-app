@@ -6,9 +6,11 @@
     "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.8.0",
     "cors": "^2.8.6",
     "express": "^4.22.1",
+    "jsonwebtoken": "^9.0.2",
     "pg": "^8.20.0"
   },
   "devDependencies": {
