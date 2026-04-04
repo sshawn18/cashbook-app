@@ -23,6 +23,8 @@ async function seed() {
         updated_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
+    // Migrate: add user_id to existing books table if column missing
+    await exec(`ALTER TABLE books ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`);
 
     await exec(`
       CREATE TABLE IF NOT EXISTS categories (
