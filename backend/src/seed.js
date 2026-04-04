@@ -4,8 +4,19 @@ async function seed() {
   // Create tables — use pg-compatible DDL when on PostgreSQL, sqlite-compatible otherwise
   if (isPostgres()) {
     await exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    await exec(`
       CREATE TABLE IF NOT EXISTS books (
         id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         opening_balance NUMERIC DEFAULT 0,
         created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -59,8 +70,19 @@ async function seed() {
     `);
   } else {
     await exec(`
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now'))
+      )
+    `);
+
+    await exec(`
       CREATE TABLE IF NOT EXISTS books (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         name TEXT NOT NULL,
         opening_balance REAL DEFAULT 0,
         created_at TEXT DEFAULT (datetime('now')),

@@ -3,11 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
 export default function SettingsPage() {
   const navigate = useNavigate()
   const { theme, toggle } = useTheme()
+  const { user, logout } = useAuth()
+
+  const handleLogout = () => {
+    if (window.confirm('Are you sure you want to log out?')) {
+      logout()
+      navigate('/login')
+    }
+  }
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: () => api.get('/settings'),
@@ -85,6 +94,21 @@ export default function SettingsPage() {
           </div>
           <span className="text-2xl font-bold" style={{ color: 'var(--text-secondary)' }}>₹</span>
         </div>
+      </div>
+
+      <div className="mt-6 px-4">
+        <div className="rounded-2xl p-4 mb-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <p className="text-xs uppercase tracking-wide font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Logged in as</p>
+          <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{user?.name}</p>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{user?.email}</p>
+        </div>
+        <button
+          onClick={handleLogout}
+          className="w-full py-3 rounded-xl font-bold"
+          style={{ background: 'var(--bg-card)', border: '1px solid #dc2626', color: '#dc2626' }}
+        >
+          Log Out
+        </button>
       </div>
     </div>
   )

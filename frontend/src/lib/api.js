@@ -1,21 +1,33 @@
 const BASE = '/api'
 
-async function request(path, options = {}) {
+async function request(method, path, body) {
+  const token = localStorage.getItem('cb_token')
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   })
+
+  if (res.status === 401) {
+    localStorage.removeItem('cb_token')
+    localStorage.removeItem('cb_user')
+    window.location.href = '/login'
+    return
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
-    throw new Error(err.error || res.statusText)
+    throw new Error(err.error || 'Request failed')
   }
   return res.json()
 }
 
 export const api = {
-  get:    (path)       => request(path),
-  post:   (path, body) => request(path, { method: 'POST', body }),
-  put:    (path, body) => request(path, { method: 'PUT', body }),
-  delete: (path)       => request(path, { method: 'DELETE' }),
+  get:    (path)       => request('GET', path),
+  post:   (path, body) => request('POST', path, body),
+  put:    (path, body) => request('PUT', path, body),
+  delete: (path)       => request('DELETE', path),
 }

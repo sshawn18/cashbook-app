@@ -20,6 +20,7 @@ app.use(async (req, res, next) => {
   try { await init(); next(); } catch (e) { next(e); }
 });
 
+app.use('/api/auth',         require('./src/routes/auth'));
 app.use('/api/books',        require('./src/routes/books'));
 app.use('/api/transactions', require('./src/routes/transactions'));
 app.use('/api/parties',      require('./src/routes/parties'));
