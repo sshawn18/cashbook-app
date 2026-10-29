@@ -120,8 +120,8 @@ export default function ReportsPage() {
               <XAxis dataKey="date" tick={{ fontSize: 8, fill: 'var(--text-secondary)' }} tickFormatter={d => d.slice(5)} />
               <YAxis tick={{ fontSize: 8, fill: 'var(--text-secondary)' }} tickFormatter={v => new Intl.NumberFormat('en-IN', { notation: 'compact' }).format(v / 100)} />
               <Tooltip formatter={(v, n) => [fmtPaise(v), n === 'in' ? 'Cash In' : 'Cash Out']} />
-              <Bar dataKey="in"  fill="#4ee3a4" radius={[4,4,0,0]} name="in" />
-              <Bar dataKey="out" fill="#ff7a68" radius={[4,4,0,0]} name="out" />
+              <Bar dataKey="in"  fill="#5bc99b" radius={[4,4,0,0]} name="in" />
+              <Bar dataKey="out" fill="#f0786c" radius={[4,4,0,0]} name="out" />
             </BarChart>
           </ResponsiveContainer>
         )}
