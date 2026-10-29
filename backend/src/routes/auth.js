@@ -5,6 +5,16 @@ const { query } = require('../db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'cashbook_dev_secret_change_in_prod';
 
+const DEFAULT_CATEGORIES = [
+  { name: 'Sales',         type: 'income',  color: '#16a34a', icon: '💼' },
+  { name: 'Purchase',      type: 'expense', color: '#dc2626', icon: '🛒' },
+  { name: 'Salary',        type: 'expense', color: '#9333ea', icon: '👨‍💼' },
+  { name: 'Rent',          type: 'expense', color: '#ea580c', icon: '🏢' },
+  { name: 'Utilities',     type: 'expense', color: '#0891b2', icon: '⚡' },
+  { name: 'Transport',     type: 'expense', color: '#65a30d', icon: '🚗' },
+  { name: 'Miscellaneous', type: 'expense', color: '#6366f1', icon: '📦' },
+];
+
 // POST /api/auth/register
 router.post('/register', async (req, res, next) => {
   try {
@@ -21,6 +31,15 @@ router.post('/register', async (req, res, next) => {
       [name, email.toLowerCase(), hash]
     );
     const token = jwt.sign({ id: lastID, email: email.toLowerCase(), name }, JWT_SECRET, { expiresIn: '30d' });
+
+    // Seed default categories for the new user
+    for (const cat of DEFAULT_CATEGORIES) {
+      await query(
+        'INSERT INTO categories (name, type, color, icon, user_id) VALUES (?, ?, ?, ?, ?) RETURNING id',
+        [cat.name, cat.type, cat.color, cat.icon, lastID]
+      );
+    }
+
     res.status(201).json({ token, user: { id: lastID, name, email: email.toLowerCase() } });
   } catch (e) { next(e); }
 });

@@ -1,53 +1,96 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f6ff;
+  --bg-primary: #f6f7f9;
+  --bg-secondary: #eceef2;
   --bg-card: #ffffff;
-  --border: #e8eaf6;
-  --text-primary: #1e293b;
-  --text-secondary: #9fa8da;
-  --text-muted: #c5cae9;
-  --accent: #1a237e;
-  --accent-gradient: linear-gradient(135deg, #1a237e, #1565c0);
-  --cash-in: #16a34a;
-  --cash-out: #dc2626;
-  --nav-bg: #ffffff;
-  --chip-bg: #e8eaf6;
-  --chip-text: #5c6bc0;
+  --border: #e2e5ea;
+  --text-primary: #12151a;
+  --text-secondary: #5d6673;
+  --text-muted: #98a1ad;
+  --accent: #5b7a00;
+  --accent-soft: rgba(91, 122, 0, 0.1);
+  --accent-line: rgba(91, 122, 0, 0.45);
+  --accent-gradient: #5b7a00;
+  --on-accent: #ffffff;
+  --cash-in: #0f9d6b;
+  --cash-out: #e0483a;
+  --nav-bg: rgba(255, 255, 255, 0.9);
+  --chip-bg: #eceef2;
+  --chip-text: #5d6673;
+  --sheet-bg: #ffffff;
 }
 
 [data-theme="dark"] {
-  --bg-primary: #0b0d1a;
-  --bg-secondary: #151829;
-  --bg-card: #151829;
-  --border: #1e2340;
-  --text-primary: #ffffff;
-  --text-secondary: #6b7a9f;
-  --text-muted: #2d3561;
-  --accent: #3d5afe;
-  --accent-gradient: linear-gradient(135deg, #1a237e, #1565c0);
-  --cash-in: #16a34a;
-  --cash-out: #dc2626;
-  --nav-bg: #0d0f1e;
-  --chip-bg: #1e2340;
-  --chip-text: #6b7a9f;
+  --bg-primary: #08090b;
+  --bg-secondary: #101215;
+  --bg-card: #101215;
+  --border: #1d2025;
+  --text-primary: #e9ecf0;
+  --text-secondary: #8b93a0;
+  --text-muted: #565d68;
+  --accent: #d6ff3d;
+  --accent-soft: rgba(214, 255, 61, 0.1);
+  --accent-line: rgba(214, 255, 61, 0.45);
+  --accent-gradient: #d6ff3d;
+  --on-accent: #10130a;
+  --cash-in: #4ee3a4;
+  --cash-out: #ff7a68;
+  --nav-bg: rgba(14, 16, 19, 0.88);
+  --chip-bg: #16191d;
+  --chip-text: #aab1bb;
+  --sheet-bg: #0e1013;
 }
 
 * {
   box-sizing: border-box;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Outfit', system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }
+
+html { color-scheme: dark; }
+[data-theme="light"] { color-scheme: light; }
 
 body {
   margin: 0;
   background: var(--bg-primary);
   color: var(--text-primary);
+  font-size: 14px;
+  overscroll-behavior-y: none;
 }
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* white text on accent buttons becomes readable on the lime accent */
+.text-white { color: var(--on-accent); }
 
 /* Hide scrollbar but keep scrolling */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Skeleton loader sweep animation */
+@keyframes skeleton-sweep {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* Sheet + overlay motion */
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes fade-in  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise     { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.sheet-in  { animation: sheet-up 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+.fade-in   { animation: fade-in 0.2s ease-out; }
+.rise      { animation: rise 0.25s ease-out both; }
+
+.press { transition: transform 0.12s ease, opacity 0.12s ease; }
+.press:active { transform: scale(0.97); opacity: 0.85; }
+
+/* Page transition */
+.page { animation: fade-in 0.22s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-in, .fade-in, .rise, .page { animation: none; }
+}

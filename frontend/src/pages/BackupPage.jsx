@@ -75,7 +75,7 @@ export default function BackupPage() {
           </div>
           <label
             className="block w-full py-2.5 rounded-xl font-bold text-white text-sm text-center cursor-pointer"
-            style={{ background: '#dc2626' }}
+            style={{ background: 'var(--cash-out)', color: '#2a0a05' }}
           >
             Choose File
             <input type="file" accept=".json" onChange={importData} className="hidden" />

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useParties, useCreateParty, useDeleteParty } from '../hooks/useParties'
-import { fmtCurrency } from '../lib/utils'
+import { fmtPaise } from '../lib/utils'
 import BottomSheet from '../components/BottomSheet'
 
 const emptyForm = { name: '', phone: '', type: 'customer', opening_balance: '' }
@@ -20,7 +20,7 @@ export default function PartiesPage() {
 
   const handleSave = async () => {
     if (!form.name.trim()) return
-    await createParty.mutateAsync({ ...form, opening_balance: Number(form.opening_balance) || 0 })
+    await createParty.mutateAsync({ ...form, opening_balance: Math.round((Number(form.opening_balance) || 0) * 100) })
     setForm(emptyForm)
     setOpen(false)
   }
@@ -64,7 +64,7 @@ export default function PartiesPage() {
                 className="font-bold text-sm"
                 style={{ color: p.balance >= 0 ? 'var(--cash-in)' : 'var(--cash-out)' }}
               >
-                {fmtCurrency(p.balance)}
+                {(p.balance < 0 ? '−' : '') + fmtPaise(p.balance)}
               </span>
               <button
                 onClick={() => window.confirm('Delete party?') && deleteParty.mutate(p.id)}
@@ -81,7 +81,7 @@ export default function PartiesPage() {
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-20 right-4 px-5 py-3 rounded-2xl font-bold text-white z-40"
-        style={{ background: 'var(--accent-gradient)', boxShadow: '0 4px 20px rgba(26,35,126,0.4)' }}
+        style={{ background: 'var(--accent-gradient)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
       >
         + Add Party
       </button>

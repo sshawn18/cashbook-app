@@ -146,26 +146,53 @@ async function seed() {
     `);
   }
 
-  // Seed default categories if none exist
-  const { rows } = await query('SELECT COUNT(*) as count FROM categories');
-  const count = parseInt(rows[0].count, 10);
-  if (count === 0) {
-    const defaults = [
-      { name: 'Sales',         type: 'income',  color: '#16a34a', icon: '💼' },
-      { name: 'Purchase',      type: 'expense', color: '#dc2626', icon: '🛒' },
-      { name: 'Salary',        type: 'expense', color: '#9333ea', icon: '👨‍💼' },
-      { name: 'Rent',          type: 'expense', color: '#ea580c', icon: '🏢' },
-      { name: 'Utilities',     type: 'expense', color: '#0891b2', icon: '⚡' },
-      { name: 'Transport',     type: 'expense', color: '#65a30d', icon: '🚗' },
-      { name: 'Miscellaneous', type: 'expense', color: '#6366f1', icon: '📦' },
-    ];
-    for (const cat of defaults) {
-      await query(
-        'INSERT INTO categories (name, type, color, icon, is_default) VALUES (?, ?, ?, ?, 1)',
-        [cat.name, cat.type, cat.color, cat.icon]
-      );
+  // Migrations — idempotent schema changes applied on every startup
+  if (isPostgres()) {
+    await exec(`ALTER TABLE books       ADD COLUMN IF NOT EXISTS user_id   INTEGER REFERENCES users(id) ON DELETE CASCADE`);
+    await exec(`ALTER TABLE categories  ADD COLUMN IF NOT EXISTS user_id   INTEGER REFERENCES users(id)`);
+  } else {
+    // SQLite does not support IF NOT EXISTS on ALTER TABLE — catch the duplicate-column error
+    for (const sql of [
+      `ALTER TABLE books      ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE`,
+      `ALTER TABLE categories ADD COLUMN user_id INTEGER REFERENCES users(id)`,
+    ]) {
+      try { await exec(sql); } catch (e) {
+        if (!e.message.toLowerCase().includes('duplicate column')) throw e;
+      }
     }
-    console.log('Seeded default categories');
+  }
+
+  // ── Indexes ────────────────────────────────────────────────────────────────
+  const indexes = [
+    'CREATE INDEX IF NOT EXISTS idx_txn_book_date ON transactions(book_id, date)',
+    'CREATE INDEX IF NOT EXISTS idx_txn_party     ON transactions(party_id)',
+    'CREATE INDEX IF NOT EXISTS idx_books_user    ON books(user_id)',
+    'CREATE INDEX IF NOT EXISTS idx_parties_book  ON parties(book_id)',
+  ];
+
+  if (isPostgres()) {
+    for (const idx of indexes) await exec(idx);
+  } else {
+    for (const idx of indexes) {
+      try { await exec(idx); } catch (e) {
+        if (!e.message.includes('already exists')) throw e;
+      }
+    }
+  }
+
+  // ── Paise migration (one-time, gated by flag) ──────────────────────────────
+  const { rows: migRows } = await query(
+    "SELECT value FROM settings WHERE key = '__migration_paise_v1'"
+  );
+  if (migRows.length === 0) {
+    await exec('UPDATE transactions SET amount = ROUND(amount * 100)');
+    await exec('UPDATE books         SET opening_balance = ROUND(opening_balance * 100)');
+    await exec('UPDATE parties       SET opening_balance = ROUND(opening_balance * 100)');
+    await query(
+      "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",
+      ['__migration_paise_v1', '1']
+    );
+    console.log('Paise migration complete: amounts converted to integer paise');
   }
 }
 

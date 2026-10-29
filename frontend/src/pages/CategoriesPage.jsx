@@ -81,7 +81,7 @@ export default function CategoriesPage() {
       <button
         onClick={() => setOpen(true)}
         className="fixed bottom-20 right-4 px-5 py-3 rounded-2xl font-bold text-white z-40"
-        style={{ background: 'var(--accent-gradient)', boxShadow: '0 4px 20px rgba(26,35,126,0.4)' }}
+        style={{ background: 'var(--accent-gradient)', boxShadow: '0 8px 24px rgba(0,0,0,0.35)' }}
       >
         + Add Category
       </button>

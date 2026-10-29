@@ -11,11 +11,12 @@ function getDb() {
     _db = new Pool({ connectionString: connStr, ssl: { rejectUnauthorized: false } });
     _isPostgres = true;
   } else {
+    if (process.env.VERCEL) {
+      console.error('FATAL: DATABASE_URL is not set. On Vercel, SQLite uses /tmp which is wiped on every cold start. All data would be lost. Set DATABASE_URL in Vercel Environment Variables.');
+      process.exit(1);
+    }
     const Database = require('better-sqlite3');
-    // Use /tmp on Vercel Lambda (read-only /var/task), local path otherwise
-    const dbPath = process.env.VERCEL
-      ? '/tmp/cashbook.db'
-      : path.join(__dirname, '..', '..', 'cashbook.db');
+    const dbPath = path.join(__dirname, '..', '..', 'cashbook.db');
     _db = new Database(dbPath);
     _db.pragma('journal_mode = WAL');
     _db.pragma('foreign_keys = ON');

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '../lib/api'
 import { useTheme } from '../context/ThemeContext'
 import { useAuth } from '../context/AuthContext'
@@ -10,6 +10,7 @@ export default function SettingsPage() {
   const navigate = useNavigate()
   const { theme, toggle } = useTheme()
   const { user, logout } = useAuth()
+  const qc = useQueryClient()
 
   const handleLogout = () => {
     if (window.confirm('Are you sure you want to log out?')) {
@@ -17,19 +18,26 @@ export default function SettingsPage() {
       navigate('/login')
     }
   }
+
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: () => api.get('/settings'),
   })
+
   const [businessName, setBusinessName] = useState('')
+  const [currency, setCurrency] = useState('₹')
 
   useEffect(() => {
     if (settings?.businessName) setBusinessName(settings.businessName)
+    if (settings?.currency) setCurrency(settings.currency)
   }, [settings])
 
   const save = useMutation({
     mutationFn: (data) => api.put('/settings', data),
-    onSuccess: () => toast.success('Settings saved'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['settings'] })
+      toast.success('Settings saved')
+    },
     onError: (e) => toast.error(e.message),
   })
 
@@ -41,20 +49,35 @@ export default function SettingsPage() {
       </div>
 
       <div className="space-y-3">
-        {/* Business name */}
+        {/* Business name + Currency */}
         <div className="p-4 rounded-2xl space-y-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-          <label className="text-xs font-semibold uppercase tracking-wide block" style={{ color: 'var(--text-secondary)' }}>
-            Business Name
-          </label>
-          <input
-            value={businessName}
-            onChange={e => setBusinessName(e.target.value)}
-            placeholder="Your business name"
-            className="w-full rounded-xl px-4 py-3 text-sm outline-none"
-            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-          />
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Business Name
+            </label>
+            <input
+              value={businessName}
+              onChange={e => setBusinessName(e.target.value)}
+              placeholder="Your business name"
+              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+          </div>
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide block mb-1" style={{ color: 'var(--text-secondary)' }}>
+              Currency Symbol
+            </label>
+            <input
+              value={currency}
+              onChange={e => setCurrency(e.target.value)}
+              placeholder="₹"
+              maxLength={4}
+              className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+            />
+          </div>
           <button
-            onClick={() => save.mutate({ businessName })}
+            onClick={() => save.mutate({ businessName, currency })}
             disabled={save.isPending}
             className="w-full py-2.5 rounded-xl font-bold text-white text-sm disabled:opacity-60"
             style={{ background: 'var(--accent-gradient)' }}
@@ -82,21 +105,9 @@ export default function SettingsPage() {
             {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
         </div>
-
-        {/* Currency (display only) */}
-        <div
-          className="p-4 rounded-2xl flex items-center justify-between"
-          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-        >
-          <div>
-            <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>Currency</p>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Indian Rupee (₹)</p>
-          </div>
-          <span className="text-2xl font-bold" style={{ color: 'var(--text-secondary)' }}>₹</span>
-        </div>
       </div>
 
-      <div className="mt-6 px-4">
+      <div className="mt-6 px-0">
         <div className="rounded-2xl p-4 mb-3" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
           <p className="text-xs uppercase tracking-wide font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Logged in as</p>
           <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{user?.name}</p>

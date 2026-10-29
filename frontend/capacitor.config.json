@@ -1,0 +1,7 @@
+{
+  "appId": "com.cashbook.app",
+  "appName": "Cashbook",
+  "webDir": "dist",
+  "android": { "allowMixedContent": false },
+  "server": { "androidScheme": "https" }
+}

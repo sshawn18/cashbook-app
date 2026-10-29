@@ -28,3 +28,15 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </React.StrictMode>
 )
+
+// PWA service worker: production only. In dev, remove any stale one so edits show up.
+if ('serviceWorker' in navigator) {
+  if (import.meta.env.PROD) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    })
+  } else {
+    navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()))
+    if (window.caches) caches.keys().then(ks => ks.forEach(k => caches.delete(k)))
+  }
+}

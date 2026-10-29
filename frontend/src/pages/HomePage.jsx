@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useBooks, useCreateBook, useDeleteBook } from '../hooks/useBooks'
-import { fmtCurrency } from '../lib/utils'
+import { fmtPaise } from '../lib/utils'
 import { useTheme } from '../context/ThemeContext'
 import BottomSheet from '../components/BottomSheet'
+import { SkeletonCard } from '../components/Skeleton'
 
 export default function HomePage() {
   const { data: books = [], isLoading } = useBooks()
@@ -14,16 +15,26 @@ export default function HomePage() {
 
   const [showSheet, setShowSheet] = useState(false)
   const [form, setForm] = useState({ name: '', opening_balance: '' })
+  const [onboardingDismissed, setOnboardingDismissed] = useState(false)
 
-  // show onboarding if no books on first load
+  // show onboarding if no books on first load — but only once
   useEffect(() => {
-    if (!isLoading && books.length === 0) setShowSheet(true)
-  }, [isLoading, books.length])
+    if (!isLoading && books.length === 0 && !onboardingDismissed) {
+      setShowSheet(true)
+    }
+  }, [isLoading, books.length, onboardingDismissed])
+
+  const handleClose = () => {
+    setShowSheet(false)
+    if (books.length === 0) {
+      setOnboardingDismissed(true)
+    }
+  }
 
   const handleCreate = async () => {
     if (!form.name.trim()) return
     try {
-      await createBook.mutateAsync({ name: form.name, opening_balance: Number(form.opening_balance) || 0 })
+      await createBook.mutateAsync({ name: form.name, opening_balance: Math.round((Number(form.opening_balance) || 0) * 100) })
       setForm({ name: '', opening_balance: '' })
       setShowSheet(false)
     } catch {
@@ -55,7 +66,9 @@ export default function HomePage() {
       {/* Book list */}
       <div className="flex-1 px-4 space-y-3 overflow-y-auto pb-24">
         {isLoading && (
-          <p className="text-center py-10" style={{ color: 'var(--text-secondary)' }}>Loading...</p>
+          <div className="space-y-3">
+            {[76, 76, 76].map((h, i) => <SkeletonCard key={i} height={h} />)}
+          </div>
         )}
         {!isLoading && books.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
@@ -92,7 +105,7 @@ export default function HomePage() {
                 className="text-base font-bold"
                 style={{ color: (book.net_balance ?? 0) >= 0 ? 'var(--cash-in)' : 'var(--cash-out)' }}
               >
-                {(book.net_balance ?? 0) < 0 ? '-' : ''}{fmtCurrency(book.net_balance ?? 0)}
+                {(book.net_balance ?? 0) < 0 ? '-' : ''}{fmtPaise(Math.abs(book.net_balance ?? 0))}
               </span>
               <button
                 onClick={e => {
@@ -117,7 +130,7 @@ export default function HomePage() {
         className="fixed bottom-20 right-4 flex items-center gap-2 px-5 py-3 rounded-2xl font-bold text-white shadow-lg z-40"
         style={{
           background: 'var(--accent-gradient)',
-          boxShadow: '0 4px 20px rgba(26,35,126,0.4)',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
         }}
       >
         + ADD NEW BOOK
@@ -126,7 +139,7 @@ export default function HomePage() {
       {/* Create Book Sheet */}
       <BottomSheet
         open={showSheet}
-        onClose={() => setShowSheet(false)}
+        onClose={handleClose}
         title={books.length === 0 ? '👋 Welcome! Create your first book' : 'Create a Book'}
       >
         <div className="space-y-4">

@@ -1,9 +1,17 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import { useBooks } from '../hooks/useBooks'
-import { useTransactions, useSummary, useDeleteTransaction } from '../hooks/useTransactions'
-import { fmtCurrency, fmtDate, groupByDate } from '../lib/utils'
+import { useTransactions, useSummary, useDeleteTransaction, useCreateTransaction } from '../hooks/useTransactions'
+import { fmtNum, dayLabel, groupByDate } from '../lib/utils'
+import { EMPTY_FILTERS, filtersToQuery, activeCount, dateLabel, MODES } from '../lib/filters'
 import AddTransactionSheet from '../modals/AddTransactionSheet'
+import FilterSheet from '../components/FilterSheet'
+import BookSwitcher from '../components/BookSwitcher'
+import Icon from '../components/Icon'
+import { SkeletonCard } from '../components/Skeleton'
+
+const signed = (t) => (t.type === 'in' ? Number(t.amount) : -Number(t.amount))
 
 export default function LedgerPage() {
   const { bookId } = useParams()
@@ -11,226 +19,280 @@ export default function LedgerPage() {
   const { data: books = [] } = useBooks()
   const book = books.find(b => String(b.id) === bookId)
 
-  const [filters, setFilters] = useState({})
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [search, setSearch] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [switcherOpen, setSwitcherOpen] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [sheetType, setSheetType] = useState('in')
+  const [sheetType, setSheetType] = useState('out')
   const [editTxn, setEditTxn] = useState(null)
+  const [limit, setLimit] = useState(50)
 
-  const activeFilters = { ...filters, ...(search ? { search } : {}) }
-  const { data: txns = [], isLoading } = useTransactions(bookId, activeFilters)
-  const { data: summary } = useSummary(bookId)
+  useEffect(() => { if (bookId) { try { localStorage.setItem('cb_last_book', bookId) } catch { /* ignore */ } } }, [bookId])
+
+  const query = useMemo(() => filtersToQuery(filters, search.trim()), [filters, search])
+  const { data: txnsResult, isLoading } = useTransactions(bookId, { ...query, limit })
+  const { data: summary } = useSummary(bookId, query)
   const deleteTxn = useDeleteTransaction(bookId)
+  const createTxn = useCreateTransaction(bookId)
 
-  const grouped = groupByDate(txns)
+  const txnsList = useMemo(() => txnsResult?.data || [], [txnsResult])
+  const hasMore = txnsResult?.hasMore || false
+  const nActive = activeCount(filters)
+
+  // Running balance: starts from the (filtered) net balance and walks down the newest-first list
+  const rows = useMemo(() => {
+    let bal = summary?.netBalance
+    if (bal === undefined) return txnsList.map(t => ({ ...t }))
+    return txnsList.map(t => {
+      const r = { ...t, runningBalance: bal }
+      bal -= signed(t)
+      return r
+    })
+  }, [txnsList, summary])
+
+  const grouped = useMemo(() => groupByDate(rows), [rows])
 
   const openAdd = (type) => { setSheetType(type); setEditTxn(null); setSheetOpen(true) }
   const openEdit = (txn) => { setEditTxn(txn); setSheetType(txn.type); setSheetOpen(true) }
 
-  const setType = (t) => setFilters(f => ({ ...f, type: t === 'all' ? undefined : t }))
-  const setMode = (m) => setFilters(f => ({ ...f, payment_mode: f.payment_mode === m ? undefined : m }))
+  const handleDelete = (e, txn) => {
+    e.stopPropagation()
+    const original = { ...txn }
+    deleteTxn.mutate(txn.id, {
+      onSuccess: () => {
+        toast(
+          (t) => (
+            <div className="flex items-center gap-3 text-[13px]">
+              <span>Entry deleted</span>
+              <button
+                onClick={() => {
+                  createTxn.mutate({
+                    type: original.type, amount: original.amount, date: original.date, note: original.note,
+                    category_id: original.category_id, party_id: original.party_id, payment_mode: original.payment_mode,
+                  })
+                  toast.dismiss(t.id)
+                }}
+                className="font-semibold"
+                style={{ color: 'var(--accent)' }}
+              >
+                Undo
+              </button>
+            </div>
+          ),
+          { duration: 5000 }
+        )
+      },
+    })
+  }
+
+  const net = summary?.netBalance ?? 0
+  const tin = summary?.totalIn ?? 0
+  const tout = summary?.totalOut ?? 0
+  const inShare = tin + tout > 0 ? (tin / (tin + tout)) * 100 : 0
+
+  const chip = (on, label, onClick, icon) => (
+    <button
+      onClick={onClick}
+      className="press shrink-0 h-8 px-3 rounded-full flex items-center gap-1.5 text-[12.5px] whitespace-nowrap"
+      style={{
+        background: on ? 'var(--accent-soft)' : 'transparent',
+        border: `1px solid ${on ? 'var(--accent-line)' : 'var(--border)'}`,
+        color: on ? 'var(--accent)' : 'var(--chip-text)',
+      }}
+    >
+      {icon && <Icon name={icon} size={13} />}
+      {label}
+    </button>
+  )
+
+  const catCount = filters.categoryId.length
+  const modeCount = filters.mode.length
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: 'var(--bg-primary)' }}>
-      {/* Header */}
-      <div className="px-4 pt-10 pb-3" style={{ background: 'var(--bg-primary)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={() => navigate('/')} className="text-2xl" style={{ color: 'var(--text-primary)' }}>←</button>
-          <div className="text-center">
-            <p className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
-              {book?.name || '...'}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Cashbook</p>
-          </div>
-          <button onClick={() => setShowSearch(s => !s)} className="text-xl">🔍</button>
-        </div>
-
-        {showSearch && (
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search entries..."
-            autoFocus
-            className="w-full rounded-xl px-4 py-2 text-sm mb-3 outline-none"
-            style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-          />
-        )}
-
-        {/* Filter chips */}
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {[['all','All'],['in','↑ Cash In'],['out','↓ Cash Out']].map(([val, label]) => (
-            <button
-              key={val}
-              onClick={() => setType(val)}
-              className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap"
-              style={{
-                background: (filters.type === val || (!filters.type && val === 'all')) ? 'var(--accent)' : 'var(--chip-bg)',
-                color: (filters.type === val || (!filters.type && val === 'all')) ? '#fff' : 'var(--chip-text)',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-          {['cash','upi','bank'].map(m => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap uppercase"
-              style={{
-                background: filters.payment_mode === m ? 'var(--accent)' : 'var(--chip-bg)',
-                color: filters.payment_mode === m ? '#fff' : 'var(--chip-text)',
-              }}
-            >
-              {m}
-            </button>
-          ))}
+    <div className="page flex flex-col min-h-screen" style={{ background: 'var(--bg-primary)' }}>
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-5 pt-5 pb-1">
+        <button onClick={() => setSwitcherOpen(true)} className="press flex items-center gap-1 text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
+          {book?.name || '…'}
+          <Icon name="chevron" size={15} style={{ color: 'var(--text-secondary)' }} />
+        </button>
+        <div className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
+          <button onClick={() => { setShowSearch(s => !s); if (showSearch) setSearch('') }} className="press w-9 h-9 grid place-items-center rounded-full" aria-label="Search">
+            <Icon name="search" size={18} />
+          </button>
+          <button onClick={() => navigate('/reports')} className="press w-9 h-9 grid place-items-center rounded-full" aria-label="Reports">
+            <Icon name="chart" size={18} />
+          </button>
+          <button onClick={() => navigate('/more')} className="press w-9 h-9 grid place-items-center rounded-full" aria-label="Menu">
+            <Icon name="menu" size={18} />
+          </button>
         </div>
       </div>
 
-      {/* Summary card */}
-      {summary && (
-        <div className="mx-4 mb-3 rounded-2xl p-4" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Net Balance</span>
-            <span
-              className="text-xl font-extrabold"
-              style={{ color: summary.netBalance >= 0 ? 'var(--cash-in)' : 'var(--cash-out)' }}
-            >
-              {summary.netBalance < 0 ? '-' : ''}{fmtCurrency(summary.netBalance)}
-            </span>
-          </div>
-          <div className="flex justify-between text-sm border-t pt-2" style={{ borderColor: 'var(--border)' }}>
-            <span style={{ color: 'var(--text-secondary)' }}>Total In (+)</span>
-            <span className="font-bold" style={{ color: 'var(--cash-in)' }}>{fmtCurrency(summary.totalIn)}</span>
-          </div>
-          <div className="flex justify-between text-sm mt-1">
-            <span style={{ color: 'var(--text-secondary)' }}>Total Out (-)</span>
-            <span className="font-bold" style={{ color: 'var(--cash-out)' }}>{fmtCurrency(summary.totalOut)}</span>
-          </div>
-          <button
-            onClick={() => navigate('/reports')}
-            className="mt-3 text-xs font-bold tracking-widest"
-            style={{ color: 'var(--accent)' }}
-          >
-            VIEW REPORTS →
-          </button>
+      {showSearch && (
+        <div className="rise px-5 pt-1 pb-1">
+          <input
+            value={search}
+            onChange={e => { setSearch(e.target.value); setLimit(50) }}
+            placeholder="Search remark or contact"
+            autoFocus
+            className="w-full h-10 rounded-xl px-3.5 text-[13.5px] outline-none"
+            style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+          />
         </div>
       )}
 
-      {/* Transaction list */}
-      <div className="flex-1 overflow-y-auto px-4 pb-32 space-y-4">
-        {isLoading && <p className="text-center py-10" style={{ color: 'var(--text-secondary)' }}>Loading...</p>}
-        {!isLoading && txns.length === 0 && (
-          <div className="flex flex-col items-center py-16 gap-2">
-            <span className="text-5xl">📭</span>
-            <p style={{ color: 'var(--text-secondary)' }}>No entries yet</p>
-            <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
-              Tap CASH IN or CASH OUT below to add your first entry
+      {/* Balance */}
+      <div className="px-5 pt-4 pb-3">
+        <p className="text-[10px] uppercase tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>
+          {summary?.filtered ? 'Filtered balance' : 'Net balance'}
+        </p>
+        <p className="num mt-0.5" style={{ fontSize: 34, fontWeight: 300, letterSpacing: '-0.04em', color: 'var(--text-primary)', lineHeight: 1.1 }}>
+          {net < 0 && <span style={{ color: 'var(--text-muted)', fontSize: 20, marginRight: 2, letterSpacing: 0 }}>−</span>}
+          {fmtNum(net)}
+        </p>
+        <div className="h-[3px] rounded-full mt-3 overflow-hidden flex gap-[3px]" style={{ background: tin + tout > 0 ? 'transparent' : 'var(--border)' }}>
+          {tin + tout > 0 && (
+            <>
+              <i style={{ width: `${inShare}%`, background: 'var(--cash-in)', borderRadius: 9, display: 'block' }} />
+              <i style={{ flex: 1, background: 'var(--cash-out)', borderRadius: 9, display: 'block' }} />
+            </>
+          )}
+        </div>
+        <div className="flex gap-5 mt-2.5 text-[12px]" style={{ color: 'var(--text-secondary)' }}>
+          <span>In <b className="num font-medium" style={{ color: 'var(--cash-in)' }}>{fmtNum(tin)}</b></span>
+          <span>Out <b className="num font-medium" style={{ color: 'var(--cash-out)' }}>{fmtNum(tout)}</b></span>
+        </div>
+      </div>
+
+      {/* Filter chips */}
+      <div className="flex gap-1.5 px-5 pb-2 overflow-x-auto no-scrollbar">
+        {chip(nActive > 0, nActive > 0 ? `Filters · ${nActive}` : 'Filters', () => setFilterOpen(true), 'filter')}
+        {chip(filters.preset !== 'all', dateLabel(filters), () => setFilterOpen(true), 'calendar')}
+        {chip(!!filters.type, filters.type === 'in' ? 'Cash in' : filters.type === 'out' ? 'Cash out' : 'Type', () => setFilterOpen(true))}
+        {chip(catCount > 0, catCount ? `Category · ${catCount}` : 'Category', () => setFilterOpen(true))}
+        {chip(modeCount > 0, modeCount ? filters.mode.map(m => MODES.find(x => x.id === m)?.label || m).join(', ') : 'Mode', () => setFilterOpen(true))}
+        {nActive > 0 && (
+          <button onClick={() => setFilters(EMPTY_FILTERS)} className="shrink-0 h-8 px-2 text-[12.5px]" style={{ color: 'var(--text-secondary)' }}>
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* List */}
+      <div className="flex-1 px-5 pb-40">
+        {isLoading && (
+          <div className="space-y-2 mt-3">{[44, 44, 44, 44, 44, 44].map((h, i) => <SkeletonCard key={i} height={h} />)}</div>
+        )}
+
+        {!isLoading && txnsList.length === 0 && (
+          <div className="flex flex-col items-center py-20 gap-1.5 text-center">
+            <p className="text-[15px]" style={{ color: 'var(--text-secondary)' }}>
+              {nActive > 0 || search ? 'Nothing matches' : 'No entries yet'}
+            </p>
+            <p className="text-[12.5px]" style={{ color: 'var(--text-muted)' }}>
+              {nActive > 0 || search ? 'Try clearing a filter.' : 'Tap In or Out below to add your first one.'}
             </p>
           </div>
         )}
-        {grouped.map(([date, rows]) => (
-          <div key={date}>
-            <p className="text-xs font-bold mb-2 uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-              {fmtDate(date)}
-            </p>
-            <div className="space-y-2">
-              {rows.map(txn => (
-                <div
-                  key={txn.id}
-                  onClick={() => openEdit(txn)}
-                  className="flex items-center justify-between p-3 rounded-2xl cursor-pointer active:scale-[0.99] transition-transform"
-                  style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-                >
-                  <div className="flex items-center gap-3">
+
+        {grouped.map(([date, dayRows]) => {
+          const dayNet = dayRows.reduce((s, t) => s + signed(t), 0)
+          return (
+            <div key={date}>
+              <div className="flex justify-between items-center pt-4 pb-1 text-[10px] uppercase tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>
+                <span>{dayLabel(date)}</span>
+                <span className="num">{dayNet < 0 ? '−' : '+'}{fmtNum(dayNet)}</span>
+              </div>
+              {dayRows.map(txn => {
+                const label = txn.note || txn.category_name || (txn.type === 'in' ? 'Cash in' : 'Cash out')
+                const sub = [txn.category_name !== label && txn.category_name, MODES.find(m => m.id === txn.payment_mode)?.label || txn.payment_mode, txn.party_name].filter(Boolean).join(' · ')
+                return (
+                  <div
+                    key={txn.id}
+                    onClick={() => openEdit(txn)}
+                    className="press group flex items-center gap-3 cursor-pointer"
+                    style={{ minHeight: 52, borderBottom: '1px solid var(--border)' }}
+                  >
                     <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                      style={{
-                        background: txn.type === 'in'
-                          ? 'rgba(22,163,74,0.12)'
-                          : 'rgba(220,38,38,0.12)',
-                      }}
+                      className="w-8 h-8 rounded-[10px] grid place-items-center shrink-0 text-[12px] font-medium"
+                      style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--chip-text)' }}
                     >
-                      {txn.category_icon || (txn.type === 'in' ? '💰' : '💸')}
+                      {(txn.category_name || label).trim().charAt(0).toUpperCase()}
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-                        {txn.note || txn.category_name || (txn.type === 'in' ? 'Cash In' : 'Cash Out')}
+                    <div className="flex-1 min-w-0 leading-tight">
+                      <p className="text-[14px] truncate" style={{ color: 'var(--text-primary)' }}>{label}</p>
+                      <p className="text-[11.5px] truncate mt-0.5" style={{ color: 'var(--text-secondary)' }}>{sub}</p>
+                    </div>
+                    <div className="text-right leading-tight shrink-0">
+                      <p className="num text-[14px] font-medium" style={{ color: txn.type === 'in' ? 'var(--cash-in)' : 'var(--cash-out)' }}>
+                        {txn.type === 'in' ? '+' : '−'}{fmtNum(txn.amount)}
                       </p>
-                      <div className="flex gap-1 mt-0.5 items-center flex-wrap">
-                        <span
-                          className="text-xs px-2 py-0.5 rounded-full"
-                          style={{ background: 'var(--chip-bg)', color: 'var(--chip-text)' }}
-                        >
-                          {txn.payment_mode?.toUpperCase()}
-                        </span>
-                        {txn.party_name && (
-                          <span
-                            className="text-xs px-2 py-0.5 rounded-full"
-                            style={{ background: 'var(--chip-bg)', color: 'var(--chip-text)' }}
-                          >
-                            {txn.party_name}
-                          </span>
-                        )}
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                          {txn.created_at ? new Date(txn.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : ''}
-                        </span>
-                      </div>
+                      {txn.runningBalance !== undefined && (
+                        <p className="num text-[10.5px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                          {txn.runningBalance < 0 ? '−' : ''}{fmtNum(txn.runningBalance)}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <p
-                      className="font-bold text-right"
-                      style={{ color: txn.type === 'in' ? 'var(--cash-in)' : 'var(--cash-out)' }}
-                    >
-                      {txn.type === 'in' ? '+' : '-'}{fmtCurrency(txn.amount)}
-                    </p>
                     <button
-                      onClick={e => {
-                        e.stopPropagation()
-                        if (window.confirm('Delete this entry?')) deleteTxn.mutate(txn.id)
-                      }}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-lg"
+                      onClick={(e) => handleDelete(e, txn)}
+                      className="w-7 h-7 -mr-1.5 grid place-items-center rounded-lg shrink-0"
                       style={{ color: 'var(--text-muted)' }}
+                      aria-label="Delete entry"
                     >
-                      ×
+                      <Icon name="close" size={14} />
                     </button>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
-          </div>
-        ))}
+          )
+        })}
+
+        {hasMore && !isLoading && (
+          <button
+            onClick={() => setLimit(l => l + 50)}
+            className="press w-full h-10 rounded-xl text-[13px] mt-4"
+            style={{ border: '1px solid var(--border)', color: 'var(--chip-text)' }}
+          >
+            Load more
+          </button>
+        )}
       </div>
 
-      {/* Sticky CASH IN / OUT buttons */}
-      <div
-        className="fixed bottom-16 left-0 right-0 flex z-40"
-        style={{ maxWidth: 480, margin: '0 auto' }}
-      >
-        <button
-          onClick={() => openAdd('in')}
-          className="flex-1 py-4 font-bold text-white text-sm tracking-wide"
-          style={{
-            background: 'linear-gradient(135deg,#16a34a,#15803d)',
-            boxShadow: '0 -2px 12px rgba(22,163,74,0.3)',
-          }}
+      {/* Floating In / Out bar */}
+      <div className="fixed left-0 right-0 flex justify-center pointer-events-none" style={{ bottom: 18, maxWidth: 480, margin: '0 auto', zIndex: 40 }}>
+        <div
+          className="pointer-events-auto flex gap-1 p-1 rounded-full"
+          style={{ background: 'var(--nav-bg)', border: '1px solid var(--border)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', boxShadow: '0 10px 30px rgba(0,0,0,0.45)' }}
         >
-          + CASH IN
-        </button>
-        <button
-          onClick={() => openAdd('out')}
-          className="flex-1 py-4 font-bold text-white text-sm tracking-wide"
-          style={{
-            background: 'linear-gradient(135deg,#dc2626,#b91c1c)',
-            boxShadow: '0 -2px 12px rgba(220,38,38,0.3)',
-          }}
-        >
-          − CASH OUT
-        </button>
+          <button
+            onClick={() => openAdd('in')}
+            className="press h-11 pl-4 pr-5 rounded-full flex items-center gap-1.5 text-[13.5px] font-medium"
+            style={{ background: 'var(--cash-in)', color: '#04210f' }}
+          >
+            <Icon name="plus" size={15} style={{ strokeWidth: 2.4 }} /> In
+          </button>
+          <button
+            onClick={() => openAdd('out')}
+            className="press h-11 pl-4 pr-5 rounded-full flex items-center gap-1.5 text-[13.5px] font-medium"
+            style={{ color: 'var(--cash-out)' }}
+          >
+            <Icon name="minus" size={15} style={{ strokeWidth: 2.4 }} /> Out
+          </button>
+        </div>
       </div>
 
+      <FilterSheet
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        bookId={bookId}
+        value={filters}
+        onApply={(f) => { setFilters(f); setLimit(50) }}
+      />
+      <BookSwitcher open={switcherOpen} onClose={() => setSwitcherOpen(false)} currentId={bookId} />
       <AddTransactionSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}

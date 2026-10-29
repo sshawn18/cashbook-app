@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 import { useBooks } from '../hooks/useBooks'
 import { useCashflow, useCategoryReport } from '../hooks/useReports'
-import { useSummary, useTransactions } from '../hooks/useTransactions'
-import { fmtCurrency } from '../lib/utils'
+import { useSummary } from '../hooks/useTransactions'
+import { api } from '../lib/api'
+import { fmtPaise } from '../lib/utils'
 import Papa from 'papaparse'
 
 const RANGES = ['Today', 'Week', 'Month', '3 Months']
@@ -29,17 +30,23 @@ export default function ReportsPage() {
 
   const { data: cashflow = [] } = useCashflow(bookId, from, to)
   const { data: catData = [] } = useCategoryReport(bookId, from, to)
-  const { data: summary } = useSummary(bookId)
-  const { data: txns = [] } = useTransactions(bookId, { from, to })
+  const { data: summary } = useSummary(bookId, { from, to })
 
   const expenseCats = catData.filter(c => c.type === 'out' && c.total > 0)
 
-  const exportCSV = () => {
+  const exportCSV = async () => {
+    // Fetch every page in the selected range
+    const txns = []
+    for (let offset = 0; ; offset += 200) {
+      const res = await api.get(`/transactions?bookId=${bookId}&from=${from}&to=${to}&limit=200&offset=${offset}`)
+      txns.push(...(res.data || []))
+      if (!res.hasMore) break
+    }
     const csv = Papa.unparse(
       txns.map(t => ({
         date: t.date,
         type: t.type,
-        amount: t.amount,
+        amount: t.amount / 100,
         category: t.category_name || '',
         party: t.party_name || '',
         note: t.note || '',
@@ -78,7 +85,7 @@ export default function ReportsPage() {
             className="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap"
             style={{
               background: range === r ? 'var(--accent)' : 'var(--chip-bg)',
-              color: range === r ? '#fff' : 'var(--chip-text)',
+              color: range === r ? 'var(--on-accent)' : 'var(--chip-text)',
             }}
           >
             {r}
@@ -96,7 +103,7 @@ export default function ReportsPage() {
           ].map(([label, val, color]) => (
             <div key={label} className="rounded-2xl p-3 text-center" style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
               <p className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>{label}</p>
-              <p className="font-bold text-sm" style={{ color }}>{fmtCurrency(val)}</p>
+              <p className="font-bold text-sm" style={{ color }}>{(val < 0 ? '−' : '') + fmtPaise(val)}</p>
             </div>
           ))}
         </div>
@@ -111,10 +118,10 @@ export default function ReportsPage() {
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={cashflow} barSize={8} barGap={2}>
               <XAxis dataKey="date" tick={{ fontSize: 8, fill: 'var(--text-secondary)' }} tickFormatter={d => d.slice(5)} />
-              <YAxis tick={{ fontSize: 8, fill: 'var(--text-secondary)' }} tickFormatter={v => `₹${v}`} />
-              <Tooltip formatter={(v, n) => [fmtCurrency(v), n === 'in' ? 'Cash In' : 'Cash Out']} />
-              <Bar dataKey="in"  fill="#16a34a" radius={[4,4,0,0]} name="in" />
-              <Bar dataKey="out" fill="#dc2626" radius={[4,4,0,0]} name="out" />
+              <YAxis tick={{ fontSize: 8, fill: 'var(--text-secondary)' }} tickFormatter={v => new Intl.NumberFormat('en-IN', { notation: 'compact' }).format(v / 100)} />
+              <Tooltip formatter={(v, n) => [fmtPaise(v), n === 'in' ? 'Cash In' : 'Cash Out']} />
+              <Bar dataKey="in"  fill="#4ee3a4" radius={[4,4,0,0]} name="in" />
+              <Bar dataKey="out" fill="#ff7a68" radius={[4,4,0,0]} name="out" />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -141,7 +148,7 @@ export default function ReportsPage() {
                   <Cell key={c.name || i} fill={c.color || '#6366f1'} />
                 ))}
               </Pie>
-              <Tooltip formatter={v => fmtCurrency(v)} />
+              <Tooltip formatter={v => fmtPaise(v)} />
             </PieChart>
           </ResponsiveContainer>
         </div>
