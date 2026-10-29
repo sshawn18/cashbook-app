@@ -45,6 +45,15 @@ export default function BookSwitcher({ open, onClose, currentId }) {
         })}
       </div>
 
+      <button
+        onClick={() => { onClose(); navigate('/books') }}
+        className="press w-full h-11 flex items-center justify-between text-[13.5px]"
+        style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-secondary)' }}
+      >
+        All books
+        <Icon name="back" size={15} style={{ transform: 'rotate(180deg)' }} />
+      </button>
+
       {adding ? (
         <div className="flex gap-2 mt-3">
           <input

@@ -114,10 +114,15 @@ export default function LedgerPage() {
     <div className="page flex flex-col min-h-screen" style={{ background: 'var(--bg-primary)' }}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-5 pt-5 pb-1">
-        <button onClick={() => setSwitcherOpen(true)} className="press flex items-center gap-1 text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
-          {book?.name || '…'}
-          <Icon name="chevron" size={15} style={{ color: 'var(--text-secondary)' }} />
-        </button>
+        <div className="flex items-center gap-1 -ml-2">
+          <button onClick={() => navigate('/books')} className="press w-9 h-9 grid place-items-center rounded-full" style={{ color: 'var(--text-secondary)' }} aria-label="All books">
+            <Icon name="back" size={19} />
+          </button>
+          <button onClick={() => setSwitcherOpen(true)} className="press flex items-center gap-1 text-[16px] font-medium" style={{ color: 'var(--text-primary)' }}>
+            {book?.name || '…'}
+            <Icon name="chevron" size={15} style={{ color: 'var(--text-secondary)' }} />
+          </button>
+        </div>
         <div className="flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
           <button onClick={() => { setShowSearch(s => !s); if (showSearch) setSearch('') }} className="press w-9 h-9 grid place-items-center rounded-full" aria-label="Search">
             <Icon name="search" size={18} />
